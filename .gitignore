@@ -5,7 +5,7 @@
 *~
 !.gitignore
 \#*\#
-adamframe.egg-info/
+strut.egg-info/
 misc/
 *.so
 build/

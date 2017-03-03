@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<strut>
+  <section>
+
+    <geometry>
+      <part type="polygon" material="mat2">
+        <vertices>
+          <vertex x="0.0" y="0.0"/>
+          <vertex x="1.0" y="0.0"/>
+          <vertex x="1.0" y="1.0"/>
+          <vertex x="0.0" y="1.0"/>
+        </vertices>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x="0.25" y="0.1"/>
+        <value name="radius" v="0.01"/>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x="0.50" y="0.1"/>
+        <value name="radius" v="0.01"/>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x="0.75" y="0.1"/>
+        <value name="radius" v="0.01"/>
+      </part>
+
+    </geometry>
+
+    <materials>
+
+      <material name="mat1" type="trilinear">
+        <value name="yield_stress" v="420e6"/>
+        <value name="youngs_modulus" v="200e9"/>
+        <value name="hardening_strain" v="0.005"/>
+        <value name="ultimate_strain" v="0.15"/>
+        <value name="ultimate_stress" v="600e6"/>
+      </material>
+
+      <material name="mat2" type="hognestad">
+        <value name="cracking_stress" v="30e6"/>
+        <value name="cracking_strain" v="0.002"/>
+        <value name="ultimate_strain" v="0.0035"/>
+      </material>
+
+
+    </materials>
+
+  </section>
+</strut>
+

@@ -36,13 +36,16 @@ setup(
         "scipy",
         "python-dateutil",
         "meshpy",
+        "bs4",
+        # "xmltodict",
     },
 
     # ext_modules = cythonize("strut/armfunctions.pyx"),
 
     entry_points = {
         "console_scripts": [
-            # "strut_app=strut.bin.strut_app:__main__",
+            "moment_curvature_graph=strut.bin.moment_curvature_graph:__main__",
+            "moment_force_graph=strut.bin.moment_force_graph:__main__",
         ],
     },
 )
