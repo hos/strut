@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 from os import path
 from setuptools.extension import Extension
-# from Cython.Build import cythonize
+from Cython.Build import cythonize
 
 
 here = path.abspath(path.dirname(__file__))
@@ -40,7 +40,7 @@ setup(
         # "xmltodict",
     },
 
-    # ext_modules = cythonize("strut/armfunctions.pyx"),
+    ext_modules = cythonize("strut/material_cython.pyx"),
 
     entry_points = {
         "console_scripts": [

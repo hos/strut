@@ -4,22 +4,19 @@ import meshpy.triangle as triangle
 from strut.utils import get_value_xml
 import numpy as np
 import math
-from strut.defaults import N_CIRCLE_SEGMENTS
+from strut.defaults import N_CIRCLE_SEGMENTS, N_MAX_ELEMENTS
 
 def round_trip_connect(start, end):
-  result = []
-  for i in range(start, end):
-      result.append((i, i+1))
-  result.append((end, start))
-  return result
+    result = []
+    for i in range(start, end):
+        result.append((i, i+1))
+    result.append((end, start))
+    return result
 
 
 class Section:
     def __init__(self, soup):
-        # print(soup.strut)
-
         geometry = soup.strut.section.geometry
-        # geometry = section["geometry"]
 
         self.materials = {}
 
@@ -52,19 +49,25 @@ class Section:
         total_force = 0
         for part in self.parts:
             force = part.force(curvature, offset)
-            # print(part.material, force)
             total_force += force
         return total_force
 
 
     def mesh(self):
         for part in self.parts:
-            part.mesh()
+            part.mesh_and_generate_structures()
 
+        total_area = sum([part.total_area() for part in self.parts])
+        max_volume = total_area / N_MAX_ELEMENTS
+
+        for part in self.parts:
+            part.mesh_and_generate_structures(max_volume=max_volume)
 
 class SectionPart:
     material = None
     mesh = None
+    area_vector = None
+    centroid_matrix = None
 
     def __init__(self):
         pass
@@ -73,33 +76,70 @@ class SectionPart:
         self.material = material
 
     def moment(self, curvature, offset):
+
         neutral_axis = -1 * offset / curvature
 
-        moment = 0.
+        moment_arm = self.centroid_matrix[:,1] - neutral_axis
+        stress = np.vectorize(lambda strain: self.material.stress(strain))
+        strain = curvature * self.centroid_matrix[:,1] + offset
 
-        for idx in range(len(self.mesh.elements)):
-            centroid = element_centroid(self.mesh, idx)
-            area = element_area(self.mesh, idx)
-            moment_arm = centroid[1] - neutral_axis
-            strain = curvature * centroid[1] + offset
-            moment += self.material.stress(strain) * area * moment_arm
+        moment = np.sum(self.area_vector * moment_arm * stress(strain))
+
+        # moment = 0.
+        # for idx in range(len(self.mesh.elements)):
+        #     # centroid = element_centroid(self.mesh, idx)
+        #     # area = element_area(self.mesh, idx)
+        #     area = self.area_vector[idx]
+        #     moment_arm = self.centroid_matrix[idx,1] - neutral_axis
+        #     strain = curvature * self.centroid_matrix[idx,1] + offset
+        #     moment += self.material.stress(strain) * area * moment_arm
 
         return moment
 
     def force(self, curvature, offset):
-        force = 0.
 
-        for idx in range(len(self.mesh.elements)):
-            centroid = element_centroid(self.mesh, idx)
-            area = element_area(self.mesh, idx)
-            strain = curvature * centroid[1] + offset
-            tmp = self.material.stress(strain) * area
-            # print(self.material, strain)
-            force += tmp
+        stress = np.vectorize(lambda strain: self.material.stress(strain))
+        strain = curvature * self.centroid_matrix[:,1] + offset
+        force = self.area_vector.dot(stress(strain))
+
+        # force = np.sum(force_vector)
+
+        # force = 0.
+        # for idx in range(len(self.mesh.elements)):
+        #     # centroid = element_centroid(self.mesh, idx)
+        #     # area = element_area(self.mesh, idx)
+        #     area = self.area_vector[idx]
+        #     strain = curvature * self.centroid_matrix[idx,1] + offset
+        #     tmp = self.material.stress(strain) * area
+        #     # print(self.material, strain)
+        #     force += tmp
 
         return force
 
-    def mesh(self):
+    def total_area(self):
+        if self.area_vector != None:
+            self.generate_area_vector()
+        return np.sum(self.area_vector)
+
+    def generate_area_vector(self):
+        area_vector = []
+        for idx in range(len(self.mesh.elements)):
+            area_vector.append(element_area(self.mesh, idx))
+        self.area_vector = np.array(area_vector)
+
+    def generate_centroid_matrix(self):
+        centroid_matrix = []
+        for idx in range(len(self.mesh.elements)):
+            centroid_matrix.append(element_centroid(self.mesh, idx))
+        self.centroid_matrix = np.array(centroid_matrix)
+
+    def mesh_and_generate_structures(self, max_volume=None):
+        self.generate_mesh(max_volume=max_volume)
+        self.generate_area_vector()
+        self.generate_centroid_matrix()
+
+
+    def generate_mesh(self, max_volume=None):
         pass
 
 class PolygonSectionPart(SectionPart):
@@ -109,12 +149,15 @@ class PolygonSectionPart(SectionPart):
         for i in soup.vertices.find_all("vertex"):
             self.vertices.append((float(i["x"]), float(i["y"])))
 
-    def mesh(self):
+    def generate_mesh(self, max_volume=None):
         info = triangle.MeshInfo()
         info.set_points(self.vertices)
         info.set_facets(round_trip_connect(0, len(self.vertices)-1))
 
-        self.mesh = triangle.build(info, max_volume=1e-3, min_angle=25)
+        if max_volume:
+            self.mesh = triangle.build(info, max_volume=max_volume, min_angle=25)
+        else:
+            self.mesh = triangle.build(info, min_angle=25)
 
         # triangle.write_gnuplot_mesh("triangles.dat", self.mesh)
 
@@ -127,31 +170,15 @@ class CircleSectionPart(SectionPart):
 
         self.vertices = get_circle_points(self.center, self.radius, N_CIRCLE_SEGMENTS)
 
-
-    def mesh(self):
+    def generate_mesh(self, max_volume=None):
         info = triangle.MeshInfo()
         info.set_points(self.vertices)
         info.set_facets(round_trip_connect(0, len(self.vertices)-1))
 
-        self.mesh = triangle.build(info, max_volume=1e-3, min_angle=25)
-
-        # import pdb; pdb.set_trace()
-
-        # for points in self.mesh.elements:
-        #     print("ASD")
-        #     for pt in points:
-        #         print(self.mesh.points[pt])
-
-        # for idx in range(len(self.mesh.elements)):
-        #     print(element_centroid(self.mesh, idx))
-        #     # print(element_area(self.mesh, idx))
-
-
-        # for value in soup.find_all("value"):
-        #     if value["name"] == "radius":
-        #         self.radius = value["v"]
-
-        # print(self.center, self.radius)
+        if max_volume:
+            self.mesh = triangle.build(info, max_volume=max_volume, min_angle=25)
+        else:
+            self.mesh = triangle.build(info, min_angle=25)
 
 
 def get_circle_points(center, radius, n_segments):
