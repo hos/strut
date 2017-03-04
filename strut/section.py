@@ -6,12 +6,23 @@ import numpy as np
 import math
 from strut.defaults import N_CIRCLE_SEGMENTS, N_MAX_ELEMENTS
 
+TOLERANCE = 1e-15
+
 def round_trip_connect(start, end):
     result = []
     for i in range(start, end):
         result.append((i, i+1))
     result.append((end, start))
     return result
+
+def check_line_which_side(l0, l1, p):
+    result = (l1[0]-l0[0]) * (p[1]-l0[1]) - (p[0]-l0[0]) * (l1[1]-l0[1])
+    if abs(result) < TOLERANCE:
+        result = 0
+    return result
+
+def transpose_list_of_lists(l):
+    return list(map(list, zip(*l)))
 
 
 class Section:
@@ -52,7 +63,6 @@ class Section:
             total_force += force
         return total_force
 
-
     def mesh(self):
         for part in self.parts:
             part.mesh_and_generate_structures()
@@ -62,6 +72,68 @@ class Section:
 
         for part in self.parts:
             part.mesh_and_generate_structures(max_volume=max_volume)
+
+    def get_offset_bounds_for_nonzero_force(self, curvature):
+        # import matplotlib
+        # matplotlib.rcParams['backend'] = "Qt4Agg"
+        # import matplotlib.pyplot as pl
+
+        bounding_points = []
+        for part in self.parts:
+            bounding_points += part.vertical_bounding
+
+            asdf = transpose_list_of_lists(part.vertical_bounding + [part.vertical_bounding[0]])
+
+            # pl.plot(asdf[1], asdf[0])
+
+        offset_bounds = set()
+
+
+        for p in bounding_points:
+            offset = p[1] - curvature * p[0]
+            test_line = [(0, offset),(1, curvature + offset)]
+
+            # pl.plot(transpose_list_of_lists(test_line)[1],transpose_list_of_lists(test_line)[0])
+
+            projections = []
+
+            for q in bounding_points:
+                # import pdb; pdb.set_trace()
+                projections.append(check_line_which_side(test_line[0], test_line[1], q))
+
+
+            if all(i >= 0 for i in projections) or all(i <= 0 for i in projections):
+                # print("*", [i<=0 for i in projections], p)
+                offset_bounds.add(offset)
+            # else:
+                # print([i<=0 for i in projections], p)
+
+
+        # for offset in offset_bounds:
+        #     test_line = [(-offset/curvature, 0),(0, offset)]
+
+        #     pl.plot(transpose_list_of_lists(test_line)[1],transpose_list_of_lists(test_line)[0])
+
+        # print(set(offset_bounds))
+
+        # pl.show()
+        # import sys
+        # sys.exit()
+
+        if len(offset_bounds) != 2:
+            raise Exception("Something is wrong")
+            # print(projections)
+        # print(len(bounding_points))
+        return (min(offset_bounds), max(offset_bounds))
+
+    def write_gnuplot_mesh(self, filename, facets=False):
+        lines = []
+        for part in self.parts:
+            part_lines = part.gnuplot_mesh_lines(filename, facets=facets)
+            # print(len(part_lines))
+            lines += part_lines
+            # lines.append("")
+        open(filename, "w").write("\n".join(lines))
 
 class SectionPart:
     material = None
@@ -117,7 +189,7 @@ class SectionPart:
         return force
 
     def total_area(self):
-        if self.area_vector != None:
+        if self.area_vector is None:
             self.generate_area_vector()
         return np.sum(self.area_vector)
 
@@ -137,10 +209,36 @@ class SectionPart:
         self.generate_mesh(max_volume=max_volume)
         self.generate_area_vector()
         self.generate_centroid_matrix()
+        self.generate_vertical_bounding_values()
 
+    def generate_vertical_bounding_values(self):
+        self.vertical_bounding = [
+            (min(self.centroid_matrix[:,1]), self.material.min_strain),
+            (max(self.centroid_matrix[:,1]), self.material.min_strain),
+            (max(self.centroid_matrix[:,1]), self.material.max_strain),
+            (min(self.centroid_matrix[:,1]), self.material.max_strain),
+        ]
+        # print(self.vertical_bounding)
 
     def generate_mesh(self, max_volume=None):
         pass
+
+    def gnuplot_mesh_lines(self, filename, facets=False):
+        result = []
+        gp_file = open(filename, "w")
+
+        if facets:
+            segments = self.mesh.facets
+        else:
+            segments = self.mesh.elements
+
+        for points in segments:
+            for pt in points:
+                result.append("%f %f" % tuple(self.mesh.points[pt]))
+            result.append("%f %f" % tuple(self.mesh.points[points[0]]))
+            result.append("")
+
+        return result
 
 class PolygonSectionPart(SectionPart):
     def __init__(self, soup):

@@ -11,7 +11,7 @@ import numpy as np
 import scipy.optimize
 
 from strut.material import *
-
+import math
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -21,12 +21,34 @@ parser.add_argument("input", type = str,
 parser.add_argument("-o", "--output", type = str, required=True,
                     help = "Output csv file")
 
+RESOLUTION = 50
+
+def get_bounds(section, curvature):
+    bounds = section.get_offset_bounds_for_nonzero_force(curvature)
+    offsets = np.flipud(np.linspace(bounds[0], bounds[1], RESOLUTION))
+    forces = []
+
+    previous_force = section.force(curvature, offsets[0])
+    for i in range(1, len(offsets)):
+        force = section.force(curvature, offsets[i])
+
+        if force * previous_force < 0:
+            return (offsets[i-1], offsets[i])
+
+        previous_force = force
+
+    return bounds
+
+    # pl.plot(offsets, forces)
+    # pl.show()
+    # sys.exit()
+
 
 def __main__():
 
-    # import matplotlib
-    # matplotlib.rcParams['backend'] = "Qt4Agg"
-    # import matplotlib.pyplot as pl
+    import matplotlib
+    matplotlib.rcParams['backend'] = "Qt4Agg"
+    import matplotlib.pyplot as pl
 
     args = parser.parse_args()
 
@@ -40,26 +62,61 @@ def __main__():
             force = section.force(curvature, p)
             return force
 
+        # min_offset, max_offset = section.get_offset_bounds_for_nonzero_force(curvature)
+        min_offset, max_offset = get_bounds(section, curvature)
+
+        # result = scipy.optimize.least_squares(f, max_offset-0.01)#, bounds=[min_offset, max_offset])
+        # # import pdb; pdb.set_trace()
+        # result = result["x"][0]
+        # error = abs(section.force(curvature, result))
+        # if error > 1e-5:
+        #     return float("nan")
+        # else:
+        #     return result
+
+        roots = scipy.optimize.bisect(f, min_offset, max_offset)
+        return roots
+
+        # roots = scipy.optimize.fsolve(f, 0.01)
+        # return roots
+
+        # roots = roots_all(f, min_offset, max_offset)
+        # return max(roots)
+
+
         # try:
-        #     result = scipy.optimize.newton(f, 0.)
+        #     result = scipy.optimize.newton(f, max_offset)
+        #     return result
         # except:
         #     return float("nan")
 
-        roots, error = scipy.optimize.leastsq(f, [0.])
-        result = roots[0]
-        error = abs(section.force(curvature, result))
+        # roots, error = scipy.optimize.leastsq(f, [0.00])
+        # result = roots[0]
+        # error = abs(section.force(curvature, result))
+        # if error > 1e-5:
+        #     return float("nan")
+        # else:
+        #     return result
 
-        if error > 1e-5:
-            return float("nan")
-        else:
-            return result
-
-    curvatures = np.linspace(-5e-3, -1e-10, 200)
+    curvatures = np.linspace(-110e-3, -1e-10, 400)
     offsets = []
     moments = []
     forces = []
 
+
+    # curvature = -50e-3
+    # bounds = section.get_offset_bounds_for_nonzero_force(curvature)
+    # offsets = np.linspace(bounds[0], bounds[1], 100)
+    # forces = []
+    # for i in offsets:
+    #     forces.append(section.force(curvature, i))
+    # pl.plot(offsets, forces)
+    # pl.show()
+    # sys.exit()
+
+
     ofile = open(args.output, "w")
+    ofile.write("# curvature offset force moment\n")
 
     for curvature in curvatures:
         offset = solve_for_offset(section, curvature)

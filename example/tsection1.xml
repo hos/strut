@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<strut>
+  <section>
+
+    <geometry>
+      <part type="polygon" material="mat2">
+        <vertices>
+          <vertex x="-.15" y="0"/>
+          <vertex x="-.15" y=".45"/>
+          <vertex x="-.9" y=".45"/>
+          <vertex x="-.9" y=".6"/>
+          <vertex x=".9" y=".6"/>
+          <vertex x=".9" y=".45"/>
+          <vertex x=".15" y=".45"/>
+          <vertex x=".15" y="0"/>
+        </vertices>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x="-.110" y=".050"/>
+        <value name="radius" v="0.014"/>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x=".110" y=".050"/>
+        <value name="radius" v="0.014"/>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x="0" y=".050"/>
+        <value name="radius" v="0.014"/>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x=".110" y=".113"/>
+        <value name="radius" v="0.014"/>
+      </part>
+
+      <part type="circle" material="mat1">
+        <vertex x="-.110" y=".113"/>
+        <value name="radius" v="0.014"/>
+      </part>
+
+
+    </geometry>
+
+    <materials>
+
+      <material name="mat1" type="trilinear" max_strain="0.05" min_strain="-0.05">
+        <value name="yield_stress" v="420e6"/>
+        <value name="youngs_modulus" v="200e9"/>
+        <value name="hardening_strain" v="0.008"/>
+        <value name="ultimate_strain" v="0.05"/>
+        <value name="ultimate_stress" v="600e6"/>
+      </material>
+
+      <material name="mat2" type="hognestad" max_strain="0" min_strain="-0.0035">
+        <value name="cracking_stress" v="30e6"/>
+        <value name="cracking_strain" v="0.002"/>
+        <value name="ultimate_strain" v="0.0035"/>
+      </material>
+
+
+    </materials>
+
+  </section>
+</strut>
+

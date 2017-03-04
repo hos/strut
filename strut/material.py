@@ -2,6 +2,8 @@ from strut.utils import get_value_xml
 from strut.material_cython import hognestad_stress, trilinear_stress
 
 class Material:
+    min_strain = None
+    max_strain = None
 
     def __init__(self):
         pass
@@ -9,6 +11,9 @@ class Material:
     def stress(self, strain):
         pass
 
+    def set_max_min_strain(self, soup):
+        self.min_strain = float(soup["min_strain"])
+        self.max_strain = float(soup["max_strain"])
 
 class Trilinear(Material):
     def __init__(self, soup):
@@ -35,7 +40,7 @@ class Trilinear(Material):
         self.youngs_modulus_strain_hardening = (self.ultimate_stress - self.yield_stress) / (self.ultimate_strain - self.hardening_strain)
 
         # import pdb; pdb.set_trace()
-
+        self.set_max_min_strain(soup)
 
     def stress(self, strain):
 
@@ -76,6 +81,8 @@ class Hognestad(Material):
         self.cracking_stress = abs(self.cracking_stress)
         self.cracking_strain = -1 * abs(self.cracking_strain)
         self.ultimate_strain = -1 * abs(self.ultimate_strain)
+
+        self.set_max_min_strain(soup)
 
     def stress(self, strain):
         return hognestad_stress(strain, self.cracking_stress, self.cracking_strain, self.ultimate_strain)

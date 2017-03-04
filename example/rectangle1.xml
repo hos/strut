@@ -15,17 +15,17 @@
 
       <part type="circle" material="mat1">
         <vertex x="0.25" y="0.1"/>
-        <value name="radius" v="0.01"/>
+        <value name="radius" v="0.03"/>
       </part>
 
       <part type="circle" material="mat1">
         <vertex x="0.50" y="0.1"/>
-        <value name="radius" v="0.01"/>
+        <value name="radius" v="0.03"/>
       </part>
 
       <part type="circle" material="mat1">
         <vertex x="0.75" y="0.1"/>
-        <value name="radius" v="0.01"/>
+        <value name="radius" v="0.03"/>
       </part>
 
     </geometry>
@@ -35,8 +35,8 @@
       <material name="mat1" type="trilinear">
         <value name="yield_stress" v="420e6"/>
         <value name="youngs_modulus" v="200e9"/>
-        <value name="hardening_strain" v="0.005"/>
-        <value name="ultimate_strain" v="0.15"/>
+        <value name="hardening_strain" v="0.008"/>
+        <value name="ultimate_strain" v="0.05"/>
         <value name="ultimate_stress" v="600e6"/>
       </material>
 
