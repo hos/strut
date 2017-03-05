@@ -21,7 +21,7 @@ parser.add_argument("input", type = str,
 parser.add_argument("-o", "--output", type = str, required=True,
                     help = "Output csv file")
 
-RESOLUTION = 50
+RESOLUTION = 1000
 
 def get_bounds(section, curvature):
     bounds = section.get_offset_bounds_for_nonzero_force(curvature)
@@ -74,7 +74,12 @@ def __main__():
         # else:
         #     return result
 
-        roots = scipy.optimize.bisect(f, min_offset, max_offset)
+        roots = scipy.optimize.brentq(f, min_offset, max_offset)
+
+        for part in section.parts:
+            if np.sum(np.abs(part.stresses(curvature, roots))) < 1e-10:
+                return float("nan")
+
         return roots
 
         # roots = scipy.optimize.fsolve(f, 0.01)
@@ -98,7 +103,8 @@ def __main__():
         # else:
         #     return result
 
-    curvatures = np.linspace(-110e-3, -1e-10, 400)
+    curvatures = np.linspace(-110e-3, -1e-10, 100)
+    curvatures = np.flipud(curvatures)
     offsets = []
     moments = []
     forces = []
@@ -120,9 +126,11 @@ def __main__():
 
     for curvature in curvatures:
         offset = solve_for_offset(section, curvature)
+        if math.isnan(offset):
+            break
         moment = section.moment(curvature, offset)
         force = section.force(curvature, offset)
-        print(offset, force)
+        print("phi=%.3e, s=%.3e, f=%.3e m=%.3e"%(curvature, offset, force, moment))
 
         ofile.write("%e %e %e %e\n"%(curvature, offset, force, moment))
         ofile.flush()

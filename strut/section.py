@@ -148,6 +148,8 @@ class SectionPart:
         self.material = material
 
     def moment(self, curvature, offset):
+        # if math.isnan(curvature) or math.isnan(offset):
+        #     return float("nan")
 
         neutral_axis = -1 * offset / curvature
 
@@ -167,6 +169,11 @@ class SectionPart:
         #     moment += self.material.stress(strain) * area * moment_arm
 
         return moment
+
+    def stresses(self, curvature, offset):
+        strain = curvature * self.centroid_matrix[:,1] + offset
+        stress = np.vectorize(lambda strain: self.material.stress(strain))
+        return stress(strain)
 
     def force(self, curvature, offset):
 

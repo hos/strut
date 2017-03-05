@@ -56,7 +56,7 @@
       </material>
 
       <material name="mat2" type="hognestad" max_strain="0" min_strain="-0.0035">
-        <value name="cracking_stress" v="30e6"/>
+        <value name="cracking_stress" v="25e6"/>
         <value name="cracking_strain" v="0.002"/>
         <value name="ultimate_strain" v="0.0035"/>
       </material>
