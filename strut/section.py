@@ -1,12 +1,19 @@
 import collections
 from strut.material import Hognestad, Trilinear
 import meshpy.triangle as triangle
-from strut.utils import get_value_xml
+from strut.utils import get_param_xml
 import numpy as np
 import math
 from strut.defaults import N_CIRCLE_SEGMENTS, N_MAX_ELEMENTS
 
 TOLERANCE = 1e-15
+
+FAILURE_LOCATION_TOP = 0
+FAILURE_LOCATION_BOTTOM = 1
+
+FAILURE_TYPE_MIN = 0
+FAILURE_TYPE_MAX = 1
+
 
 def round_trip_connect(start, end):
     result = []
@@ -27,7 +34,7 @@ def transpose_list_of_lists(l):
 
 class Section:
     def __init__(self, soup):
-        geometry = soup.strut.section.geometry
+        parts = soup.strut.section.parts
 
         self.materials = {}
 
@@ -39,7 +46,7 @@ class Section:
 
         self.parts = []
 
-        for part in geometry.find_all("part"):
+        for part in parts.find_all("part"):
 
             if part["type"] == "polygon":
                 new_part = PolygonSectionPart(part)
@@ -62,6 +69,12 @@ class Section:
             force = part.force(curvature, offset)
             total_force += force
         return total_force
+
+    def check_for_failure(self, curvature, offset):
+        for part in self.parts:
+            if part.check_for_failure(curvature, offset):
+                return True
+        return False
 
     def mesh(self):
         for part in self.parts:
@@ -141,8 +154,12 @@ class SectionPart:
     area_vector = None
     centroid_matrix = None
 
-    def __init__(self):
-        pass
+    def __init__(self, soup):
+        self.init_mesh(soup)
+
+        self.failure_criteria = []
+        for criterion in soup.find_all("failure-criterion"):
+            self.failure_criteria.append(FailureCriterion(criterion))
 
     def set_material(self, material):
         self.material = material
@@ -195,6 +212,24 @@ class SectionPart:
 
         return force
 
+    def check_for_failure(self, curvature, offset):
+        for criterion in self.failure_criteria:
+            if criterion.location == FAILURE_LOCATION_TOP:
+                location = self.max_y
+            else:
+                location = self.min_y
+
+            strain = curvature * location + offset
+
+            if criterion.type_ == FAILURE_TYPE_MIN:
+                if strain < self.material.min_strain:
+                    return True
+            elif criterion.type_ == FAILURE_TYPE_MAX:
+                if strain > self.material.max_strain:
+                    return True
+
+        return False
+
     def total_area(self):
         if self.area_vector is None:
             self.generate_area_vector()
@@ -212,11 +247,25 @@ class SectionPart:
             centroid_matrix.append(element_centroid(self.mesh, idx))
         self.centroid_matrix = np.array(centroid_matrix)
 
+    def generate_min_max_coor(self):
+        x = []
+        y = []
+
+        for p in self.mesh.points:
+            x.append(p[0])
+            y.append(p[1])
+
+        self.min_x = min(x)
+        self.max_x = max(x)
+        self.min_y = min(y)
+        self.max_y = max(y)
+
     def mesh_and_generate_structures(self, max_volume=None):
         self.generate_mesh(max_volume=max_volume)
         self.generate_area_vector()
         self.generate_centroid_matrix()
         self.generate_vertical_bounding_values()
+        self.generate_min_max_coor()
 
     def generate_vertical_bounding_values(self):
         self.vertical_bounding = [
@@ -229,6 +278,10 @@ class SectionPart:
 
     def generate_mesh(self, max_volume=None):
         pass
+
+    def init_mesh(self, soup):
+        pass
+
 
     def gnuplot_mesh_lines(self, filename, facets=False):
         result = []
@@ -247,8 +300,29 @@ class SectionPart:
 
         return result
 
-class PolygonSectionPart(SectionPart):
+class FailureCriterion:
     def __init__(self, soup):
+        location = get_param_xml(soup, "location")
+        type_ = get_param_xml(soup, "type")
+
+        if location == "top":
+            self.location = FAILURE_LOCATION_TOP
+        elif location == "bottom":
+            self.location = FAILURE_LOCATION_BOTTOM
+        else:
+            raise Exception("Invalid value %s for failure criterion location"%(location))
+
+        if type_ == "minimum":
+            self.type_ = FAILURE_TYPE_MIN
+        elif type_ == "maximum":
+            self.type_ = FAILURE_TYPE_MAX
+        else:
+            raise Exception("Invalid value %s for failure criterion type"%(type_))
+
+
+
+class PolygonSectionPart(SectionPart):
+    def init_mesh(self, soup):
         self.vertices = []
 
         for i in soup.vertices.find_all("vertex"):
@@ -268,10 +342,10 @@ class PolygonSectionPart(SectionPart):
 
 
 class CircleSectionPart(SectionPart):
-    def __init__(self, soup):
+    def init_mesh(self, soup):
         self.center = (float(soup.vertex["x"]), float(soup.vertex["y"]))
 
-        self.radius = get_value_xml(soup, "radius")
+        self.radius = get_param_xml(soup, "radius")
 
         self.vertices = get_circle_points(self.center, self.radius, N_CIRCLE_SEGMENTS)
 

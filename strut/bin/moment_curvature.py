@@ -135,6 +135,12 @@ def __main__():
         ofile.write("%e %e %e %e\n"%(curvature, offset, force, moment))
         ofile.flush()
 
+        if section.check_for_failure(curvature, offset):
+            break
+
+        # if curvature * 0.6 + offset < -0.0035:
+        #     break
+
     # for curvature, offset, force, moment in zip(curvatures, offsets, forces, moments):
 
     # pl.plot(-1*np.array(curvatures), -1*np.array(moments), "+-", linewidth=3)

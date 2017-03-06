@@ -1,4 +1,4 @@
-from strut.utils import get_value_xml
+from strut.utils import get_param_xml
 from strut.material_cython import hognestad_stress, trilinear_stress
 
 class Material:
@@ -29,11 +29,11 @@ class Trilinear(Material):
         # self.hardening_strain = hardening_strain
         # self.ultimate_strain = ultimate_strain
 
-        self.yield_stress = get_value_xml(soup, "yield_stress")
-        self.youngs_modulus = get_value_xml(soup, "youngs_modulus")
-        self.hardening_strain = get_value_xml(soup, "hardening_strain")
-        self.ultimate_stress = get_value_xml(soup, "ultimate_stress")
-        self.ultimate_strain = get_value_xml(soup, "ultimate_strain")
+        self.yield_stress = get_param_xml(soup, "yield_stress")
+        self.youngs_modulus = get_param_xml(soup, "youngs_modulus")
+        self.hardening_strain = get_param_xml(soup, "hardening_strain")
+        self.ultimate_stress = get_param_xml(soup, "ultimate_stress")
+        self.ultimate_strain = get_param_xml(soup, "ultimate_strain")
 
         self.yield_strain = self.yield_stress / self.youngs_modulus
 
@@ -74,9 +74,9 @@ class Hognestad(Material):
                  # cracking_strain,
                  # ultimate_strain):
 
-        self.cracking_stress = get_value_xml(soup, "cracking_stress")
-        self.cracking_strain = get_value_xml(soup, "cracking_strain")
-        self.ultimate_strain = get_value_xml(soup, "ultimate_strain")
+        self.cracking_stress = get_param_xml(soup, "cracking_stress")
+        self.cracking_strain = get_param_xml(soup, "cracking_strain")
+        self.ultimate_strain = get_param_xml(soup, "ultimate_strain")
 
         self.cracking_stress = abs(self.cracking_stress)
         self.cracking_strain = -1 * abs(self.cracking_strain)
