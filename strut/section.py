@@ -148,6 +148,82 @@ class Section:
             # lines.append("")
         open(filename, "w").write("\n".join(lines))
 
+    def write_vtk(self, ofilename, curvature, offset):
+        force = self.force(curvature, offset)
+        moment = self.moment(curvature, offset)
+
+        strains = []
+        stresses = []
+
+        for part in self.parts:
+            stresses.append(part.stress_field(curvature, offset))
+            strains.append(part.strain_field(curvature, offset))
+
+        f = open(ofilename,'w')
+
+        f.write("# vtk DataFile Version 3.1\n")
+        f.write("Cross sectional analysis by Strut\n")
+        f.write("ASCII\n")
+
+        f.write("DATASET UNSTRUCTURED_GRID\n")
+        # f.write("DATASET POLYDATA\n")
+        f.write("FIELD FieldData 4\n")
+
+        f.write("CURVATURE 1 1 double\n")
+        f.write("%e\n"%(curvature))
+
+        f.write("OFFSET 1 1 double\n")
+        f.write("%e\n"%(offset))
+
+        f.write("FORCE 1 1 double\n")
+        f.write("%e\n"%(force))
+
+        f.write("MOMENT 1 1 double\n")
+        f.write("%e\n"%(moment))
+
+        n_points = sum([len(part.mesh.points) for part in self.parts])
+        n_cells = sum([len(part.mesh.elements) for part in self.parts])
+        f.write("POINTS  "+repr(n_points)+" FLOAT\n")
+
+        for part in self.parts:
+            for p in part.mesh.points:
+                f.write("%6e %6e %6e\n"%(p[0],p[1],0))
+
+
+        f.write('\nCELLS %d %d\n'%(n_cells, n_cells * 4))
+        n_points_cumulative = 0
+        for part in self.parts:
+            for idx, e in enumerate(part.mesh.elements):
+                f.write("3 ")
+                for k in e:
+                    f.write("%d "%(k + n_points_cumulative))
+                f.write("\n")
+            n_points_cumulative += len(part.mesh.points)
+            # f.write('1 %d\n'%(idx))
+
+        f.write('\nCELL_TYPES '+repr(n_cells)+'\n')
+        for e in range(n_cells):
+            f.write('5 ')
+
+        f.write('\n\nCELL_DATA %d\n'%(n_cells))
+
+        f.write('SCALARS stress float\nLOOKUP_TABLE default\n')
+        for stress_field in stresses:
+            for s in stress_field:
+                f.write("%6e\n"%(s))
+
+        f.write('\n')
+
+        f.write('SCALARS strain float\nLOOKUP_TABLE default\n')
+        for strain_field in strains:
+            for s in strain_field:
+                f.write("%6e\n"%(s))
+
+        f.write('\n')
+
+        f.close()
+
+
 class SectionPart:
     material = None
     mesh = None
@@ -189,10 +265,14 @@ class SectionPart:
 
         return moment
 
-    def stresses(self, curvature, offset):
-        strain = curvature * self.centroid_matrix[:,1] + offset
+    def stress_field(self, curvature, offset):
         stress = np.vectorize(lambda strain: self.material.stress(strain))
-        return stress(strain)
+        return stress(self.strain_field(curvature, offset))
+
+    def strain_field(self, curvature, offset):
+        strain = curvature * self.centroid_matrix[:,1] + offset
+        return strain
+
 
     def force(self, curvature, offset):
 

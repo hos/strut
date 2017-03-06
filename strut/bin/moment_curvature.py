@@ -20,6 +20,8 @@ parser.add_argument("input", type = str,
                     help = "Input file")
 parser.add_argument("-o", "--output", type = str, required=True,
                     help = "Output csv file")
+parser.add_argument("-v", "--vtk-basename", type = str,
+                    help = "Output solution as legacy VTK files")
 
 RESOLUTION = 1000
 
@@ -68,7 +70,7 @@ def __main__():
         roots = scipy.optimize.brentq(f, min_offset, max_offset)
 
         for part in section.parts:
-            if np.sum(np.abs(part.stresses(curvature, roots))) < 1e-10:
+            if np.sum(np.abs(part.stress_field(curvature, roots))) < 1e-10:
                 return float("nan")
 
         return roots
@@ -114,6 +116,7 @@ def __main__():
     ofile.write("# curvature offset force moment\n")
 
     curvature = 0
+    count = 0
     while True:
 
         if curvature == 0:
@@ -128,6 +131,9 @@ def __main__():
         ofile.write("%e %e %e %e\n"%(curvature, offset, force, moment))
         ofile.flush()
 
+        if args.vtk_basename:
+            section.write_vtk(args.vtk_basename+"-%.05d.vtk"%(count), curvature, offset)
+
         if section.check_for_failure(curvature, offset):
             break
 
@@ -135,7 +141,7 @@ def __main__():
             curvature += curvature_step
         else:
             curvature -= curvature_step
-
+        count += 1
 
     # for curvature, offset, force, moment in zip(curvatures, offsets, forces, moments):
 
