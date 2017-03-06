@@ -65,15 +65,6 @@ def __main__():
         # min_offset, max_offset = section.get_offset_bounds_for_nonzero_force(curvature)
         min_offset, max_offset = get_bounds(section, curvature)
 
-        # result = scipy.optimize.least_squares(f, max_offset-0.01)#, bounds=[min_offset, max_offset])
-        # # import pdb; pdb.set_trace()
-        # result = result["x"][0]
-        # error = abs(section.force(curvature, result))
-        # if error > 1e-5:
-        #     return float("nan")
-        # else:
-        #     return result
-
         roots = scipy.optimize.brentq(f, min_offset, max_offset)
 
         for part in section.parts:
@@ -81,13 +72,6 @@ def __main__():
                 return float("nan")
 
         return roots
-
-        # roots = scipy.optimize.fsolve(f, 0.01)
-        # return roots
-
-        # roots = roots_all(f, min_offset, max_offset)
-        # return max(roots)
-
 
         # try:
         #     result = scipy.optimize.newton(f, max_offset)
@@ -103,8 +87,13 @@ def __main__():
         # else:
         #     return result
 
-    curvatures = np.linspace(-110e-3, -1e-10, 100)
-    curvatures = np.flipud(curvatures)
+    curvature_step = get_param_xml(soup.strut.section.analysis, "step_size")
+    range_ = get_param_xml(soup.strut.section.analysis, "range")
+
+    if not range_ in ["negative", "positive"]:
+        raise Exception("Invalid value for range: %s"%(range_))
+
+    curvatures = []
     offsets = []
     moments = []
     forces = []
@@ -124,10 +113,14 @@ def __main__():
     ofile = open(args.output, "w")
     ofile.write("# curvature offset force moment\n")
 
-    for curvature in curvatures:
-        offset = solve_for_offset(section, curvature)
-        if math.isnan(offset):
-            break
+    curvature = 0
+    while True:
+
+        if curvature == 0:
+            offset = 0
+        else:
+            offset = solve_for_offset(section, curvature)
+
         moment = section.moment(curvature, offset)
         force = section.force(curvature, offset)
         print("phi=%.3e, s=%.3e, f=%.3e m=%.3e"%(curvature, offset, force, moment))
@@ -138,8 +131,11 @@ def __main__():
         if section.check_for_failure(curvature, offset):
             break
 
-        # if curvature * 0.6 + offset < -0.0035:
-        #     break
+        if range_ == "positive":
+            curvature += curvature_step
+        else:
+            curvature -= curvature_step
+
 
     # for curvature, offset, force, moment in zip(curvatures, offsets, forces, moments):
 

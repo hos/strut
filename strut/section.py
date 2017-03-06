@@ -167,6 +167,8 @@ class SectionPart:
     def moment(self, curvature, offset):
         # if math.isnan(curvature) or math.isnan(offset):
         #     return float("nan")
+        if curvature == 0.:
+            return 0.
 
         neutral_axis = -1 * offset / curvature
 

@@ -70,6 +70,7 @@
 
     <analysis>
       <param name="step_size" val="1e-3"/>
+      <param name="range" type="string" val="negative"/>
     </analysis>
 
   </section>
